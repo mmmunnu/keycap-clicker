@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>keycap-clicker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+  body {
+    margin: 0;
+    height: 100vh;
+    background: #0e0e0e;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: -apple-system, system-ui;
+    color: white;
+  }
+
+  .wrap {
+    width: 280px;
+    text-align: center;
+  }
+
+  .title {
+    font-size: 28px;
+    font-weight: 800;
+    margin-bottom: 18px;
+  }
+
+  .switches {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .switch {
+    flex: 1;
+    padding: 10px 0;
+    border-radius: 10px;
+    background: #2c2c2e;
+    color: #aaa;
+    font-weight: 700;
+    font-size: 13px;
+    user-select: none;
+  }
+
+  .switch.active {
+    background: white;
+    color: black;
+  }
+
+  .enable {
+    width: 100%;
+    padding: 12px 0;
+    margin-bottom: 22px;
+    border-radius: 10px;
+    border: none;
+    font-weight: 700;
+  }
+
+  .keycap {
+    width: 140px;
+    height: 140px;
+    margin: 0 auto;
+    background: linear-gradient(145deg,#f2f2f2,#cfcfcf);
+    border-radius: 16px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #111;
+    font-size: 22px;
+    font-weight: 700;
+    box-shadow:
+      0 10px 0 #b5b5b5,
+      0 18px 30px rgba(0,0,0,.5);
+    opacity: .4;
+    user-select: none;
+  }
+
+  .keycap.active {
+    opacity: 1;
+  }
+
+  .keycap:active {
+    transform: translateY(6px);
+    box-shadow:
+      0 4px 0 #b5b5b5,
+      0 10px 20px rgba(0,0,0,.5);
+  }
+
+  .hint {
+    margin-top: 14px;
+    font-size: 12px;
+    color: #888;
+  }
+</style>
+</head>
+
+<body>
+<div class="wrap">
+  <div class="title">keycap-clicker</div>
+
+  <div class="switches">
+    <div class="switch active" data-type="black">흑축</div>
+    <div class="switch" data-type="brown">갈축</div>
+    <div class="switch" data-type="blue">청축</div>
+  </div>
+
+  <button class="enable" id="enableBtn">🔊 소리 활성화</button>
+
+  <div class="keycap" id="keycap">CLICK</div>
+
+  <div class="hint">축 선택 → 소리 활성화 → 키캡</div>
+</div>
+
+<script>
+let audioCtx = null;
+let enabled = false;
+let current = "black";
+
+const enableBtn = document.getElementById("enableBtn");
+const keycap = document.getElementById("keycap");
+const switches = document.querySelectorAll(".switch");
+
+enableBtn.addEventListener("click", async () => {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  await audioCtx.resume();
+  enabled = true;
+  keycap.classList.add("active");
+  enableBtn.textContent = "활성화 완료 ✓";
+  enableBtn.disabled = true;
+});
+
+switches.forEach(btn => {
+  btn.addEventListener("click", () => {
+    switches.forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    current = btn.dataset.type;
+  });
+});
+
+function play() {
+  if (!enabled) return;
+
+  const osc1 = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  const now = audioCtx.currentTime;
+
+  if (current === "black") {
+    osc1.type = "sine";
+    osc1.frequency.value = 110;
+    gain.gain.setValueAtTime(0.35, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+  }
+
+  if (current === "brown") {
+    osc1.type = "triangle";
+    osc1.frequency.value = 240;
+    gain.gain.setValueAtTime(0.25, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+  }
+
+  if (current === "blue") {
+    osc1.type = "square";
+    osc1.frequency.value = 1000;
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+  }
+
+  osc1.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  osc1.start(now);
+  osc1.stop(now + 0.1);
+}
+
+keycap.addEventListener("touchstart", play);
+keycap.addEventListener("mousedown", play);
+</script>
+</body>
+</html>
