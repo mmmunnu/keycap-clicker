@@ -1,0 +1,44 @@
+<script>
+  let ctx;
+  let buffer;
+  let current = "blue";
+
+  const urls = {
+    blue: "https://assets.mixkit.co/sfx/preview/mixkit-mechanical-keyboard-single-press-2531.mp3",
+    red: "https://assets.mixkit.co/sfx/preview/mixkit-keyboard-typing-1386.mp3",
+    brown: "https://assets.mixkit.co/sfx/preview/mixkit-computer-keyboard-click-1138.mp3"
+  };
+
+  async function unlock() {
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const res = await fetch(urls[current]);
+    const arr = await res.arrayBuffer();
+    buffer = await ctx.decodeAudioData(arr);
+  }
+
+  async function play() {
+    if (!ctx) {
+      await unlock(); // 첫 터치는 unlock용
+      return;
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.connect(ctx.destination);
+    src.start();
+  }
+
+  document.body.addEventListener("touchstart", play);
+  document.body.addEventListener("click", play);
+
+  document.querySelectorAll("button").forEach(btn => {
+    btn.addEventListener("click", async e => {
+      e.stopPropagation();
+      current = btn.dataset.sound;
+      ctx = null;
+      buffer = null;
+      await unlock();
+      document.querySelectorAll("button").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+    });
+  });
+</script>
