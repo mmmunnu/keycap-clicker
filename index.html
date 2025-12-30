@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>keycap-clicker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- 홈화면 앱 설정 -->
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="keycap-clicker">
+
+<style>
+body {
+  margin:0;
+  height:100vh;
+  background:#0b0b0d;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  font-family:-apple-system, system-ui;
+  color:white;
+}
+
+.wrap {
+  width:320px;
+  text-align:center;
+}
+
+.title {
+  font-size:28px;
+  font-weight:800;
+  margin-bottom:22px;
+}
+
+.keycap {
+  width:180px;
+  height:180px;
+  margin:0 auto;
+  background:linear-gradient(145deg,#f6f6f6,#cfcfcf);
+  border-radius:22px;
+  box-shadow:
+    0 14px 0 #b5b5b5,
+    0 28px 40px rgba(0,0,0,.7);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  color:#111;
+  user-select:none;
+  opacity:.35;
+}
+
+.keycap.active {
+  opacity:1;
+}
+
+.keycap:active {
+  transform:translateY(8px);
+  box-shadow:
+    0 6px 0 #b5b5b5,
+    0 14px 26px rgba(0,0,0,.7);
+}
+
+.main {
+  font-size:28px;
+  font-weight:800;
+  letter-spacing:1px;
+}
+
+.enable {
+  margin-top:24px;
+  width:100%;
+  padding:12px 0;
+  border-radius:10px;
+  border:none;
+  font-weight:700;
+}
+</style>
+</head>
+
+<body>
+<div class="wrap">
+  <div class="title">keycap-clicker</div>
+
+  <div class="keycap" id="keycap">
+    <div class="main">click</div>
+  </div>
+
+  <button class="enable" id="enableBtn">🔊 ASMR 시작</button>
+</div>
+
+<script>
+let ctx;
+let enabled = false;
+
+const keycap = document.getElementById("keycap");
+const enableBtn = document.getElementById("enableBtn");
+
+// ASMR용 잔향
+function createReverb(ctx) {
+  const convolver = ctx.createConvolver();
+  const length = ctx.sampleRate * 1.2;
+  const impulse = ctx.createBuffer(2, length, ctx.sampleRate);
+
+  for (let c = 0; c < 2; c++) {
+    const data = impulse.getChannelData(c);
+    for (let i = 0; i < length; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2);
+    }
+  }
+
+  convolver.buffer = impulse;
+  return convolver;
+}
+
+let reverb;
+
+enableBtn.onclick = async () => {
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  await ctx.resume();
+
+  reverb = createReverb(ctx);
+
+  enabled = true;
+  keycap.classList.add("active");
+  enableBtn.textContent = "ASMR 활성화 ✓";
+  enableBtn.disabled = true;
+};
+
+function noiseBurst(time, dur, freq, vol) {
+  const buffer = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < data.length; i++) {
+    data[i] = Math.random() * 2 - 1;
+  }
+
+  const src = ctx.createBufferSource();
+  const filter = ctx.createBiquadFilter();
+  const gain = ctx.createGain();
+
+  filter.type = "lowpass";
+  filter.frequency.value = freq;
+
+  gain.gain.setValueAtTime(vol, time);
+  gain.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+
+  src.buffer = buffer;
+  src.connect(filter);
+  filter.connect(gain);
+  gain.connect(reverb);
+  reverb.connect(ctx.destination);
+
+  src.start(time);
+}
+
+function play() {
+  if (!enabled) return;
+
+  const t = ctx.currentTime;
+  const rand = Math.random();
+
+  // 바닥 찍힘 (둔탁)
+  noiseBurst(t, 0.04, 1400, 0.5);
+
+  // 스프링 (저음)
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+
+  osc.type = "sine";
+  osc.frequency.value = 85 + rand * 15;
+
+  g.gain.setValueAtTime(0.35, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+
+  osc.connect(g);
+  g.connect(reverb);
+
+  osc.start(t + 0.01);
+  osc.stop(t + 0.2);
+
+  // 복원음
+  noiseBurst(t + 0.18, 0.025, 1800, 0.18);
+}
+
+keycap.addEventListener("mousedown", play);
+keycap.addEventListener("touchstart", play);
+</script>
+</body>
+</html>
