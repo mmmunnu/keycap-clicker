@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>keycap-clicker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      background: #0e0e0e;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, system-ui;
+      color: #fff;
+    }
+
+    .container {
+      text-align: center;
+    }
+
+    .title {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 24px;
+    }
+
+    .enable {
+      margin-bottom: 32px;
+      padding: 12px 20px;
+      border-radius: 10px;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .keycap {
+      width: 140px;
+      height: 140px;
+      background: linear-gradient(145deg, #f2f2f2, #cfcfcf);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #111;
+      font-size: 22px;
+      font-weight: 700;
+      box-shadow:
+        0 10px 0 #b5b5b5,
+        0 18px 30px rgba(0, 0, 0, 0.5);
+      user-select: none;
+      transition: transform 0.05s ease, box-shadow 0.05s ease;
+      margin: 0 auto;
+      opacity: 0.4;
+    }
+
+    .keycap.active {
+      opacity: 1;
+      cursor: pointer;
+    }
+
+    .keycap:active {
+      transform: translateY(6px);
+      box-shadow:
+        0 4px 0 #b5b5b5,
+        0 10px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .hint {
+      margin-top: 16px;
+      font-size: 13px;
+      color: #888;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+    <div class="title">keycap-clicker</div>
+
+    <button class="enable" id="enableBtn">
+      🔊 소리 활성화
+    </button>
+
+    <div class="keycap" id="keycap">CLICK</div>
+
+    <div class="hint">먼저 소리 활성화를 눌러주세요</div>
+  </div>
+
+  <script>
+    let audioCtx = null;
+    let enabled = false;
+
+    const enableBtn = document.getElementById("enableBtn");
+    const keycap = document.getElementById("keycap");
+
+    enableBtn.addEventListener("click", async () => {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      await audioCtx.resume();   // 🔑 이게 핵심
+
+      enabled = true;
+      keycap.classList.add("active");
+      enableBtn.textContent = "활성화 완료 ✓";
+      enableBtn.disabled = true;
+    });
+
+    function playClick() {
+      if (!enabled) return;
+
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = "square";
+      osc.frequency.value = 900;
+
+      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(
+        0.001,
+        audioCtx.currentTime + 0.05
+      );
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.05);
+    }
+
+    keycap.addEventListener("touchstart", playClick);
+    keycap.addEventListener("mousedown", playClick);
+  </script>
+
+</body>
+</html>
