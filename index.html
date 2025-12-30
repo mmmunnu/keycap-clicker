@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>keycap-clicker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+  margin:0;
+  height:100vh;
+  background:#0b0b0d;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  font-family:-apple-system, system-ui;
+  color:white;
+}
+
+.wrap {
+  width:320px;
+  text-align:center;
+}
+
+.title {
+  font-size:28px;
+  font-weight:800;
+  margin-bottom:16px;
+}
+
+.row {
+  display:flex;
+  gap:8px;
+  margin-bottom:12px;
+}
+
+.btn {
+  flex:1;
+  padding:10px 0;
+  border-radius:10px;
+  background:#2c2c2e;
+  color:#aaa;
+  font-size:13px;
+  font-weight:700;
+}
+
+.btn.active {
+  background:white;
+  color:black;
+}
+
+.enable {
+  width:100%;
+  padding:12px 0;
+  margin-bottom:24px;
+  border-radius:10px;
+  border:none;
+  font-weight:700;
+}
+
+.keycap {
+  width:170px;
+  height:170px;
+  margin:0 auto;
+  background:linear-gradient(145deg,#f6f6f6,#cfcfcf);
+  border-radius:20px;
+  box-shadow:
+    0 12px 0 #b5b5b5,
+    0 22px 36px rgba(0,0,0,.6);
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  color:#111;
+  opacity:.35;
+  user-select:none;
+}
+
+.keycap.active { opacity:1; }
+
+.keycap:active {
+  transform:translateY(7px);
+  box-shadow:
+    0 5px 0 #b5b5b5,
+    0 12px 22px rgba(0,0,0,.6);
+}
+
+.main {
+  font-size:26px;
+  font-weight:800;
+}
+
+.sub {
+  font-size:12px;
+  margin-top:6px;
+  opacity:.6;
+}
+</style>
+</head>
+
+<body>
+<div class="wrap">
+  <div class="title">keycap-clicker</div>
+
+  <div class="row">
+    <div class="btn active" data-switch="black">흑축</div>
+    <div class="btn" data-switch="brown">갈축</div>
+    <div class="btn" data-switch="blue">청축</div>
+  </div>
+
+  <div class="row">
+    <div class="btn active" data-mat="pbt">PBT</div>
+    <div class="btn" data-mat="abs">ABS</div>
+  </div>
+
+  <button class="enable" id="enableBtn">🔊 소리 활성화</button>
+
+  <div class="keycap" id="keycap">
+    <div class="main">Enter</div>
+    <div class="sub">return</div>
+  </div>
+</div>
+
+<script>
+let ctx;
+let enabled = false;
+let sw = "black";
+let mat = "pbt";
+
+const enableBtn = document.getElementById("enableBtn");
+const keycap = document.getElementById("keycap");
+
+enableBtn.onclick = async () => {
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  await ctx.resume();
+  enabled = true;
+  keycap.classList.add("active");
+  enableBtn.textContent = "활성화 완료 ✓";
+  enableBtn.disabled = true;
+};
+
+document.querySelectorAll("[data-switch]").forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll("[data-switch]").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active");
+    sw=b.dataset.switch;
+  };
+});
+
+document.querySelectorAll("[data-mat]").forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll("[data-mat]").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active");
+    mat=b.dataset.mat;
+  };
+});
+
+// 🔊 소리 엔진
+function noiseBurst(time, dur, freq, vol) {
+  const buffer = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i=0;i<data.length;i++) data[i]=(Math.random()*2-1);
+
+  const src = ctx.createBufferSource();
+  const filter = ctx.createBiquadFilter();
+  const gain = ctx.createGain();
+
+  filter.type="lowpass";
+  filter.frequency.value=freq;
+
+  gain.gain.setValueAtTime(vol, time);
+  gain.gain.exponentialRampToValueAtTime(0.001, time+dur);
+
+  src.buffer=buffer;
+  src.connect(filter);
+  filter.connect(gain);
+  gain.connect(ctx.destination);
+
+  src.start(time);
+}
+
+function play() {
+  if(!enabled) return;
+
+  const t = ctx.currentTime;
+  const rand = Math.random();
+
+  const matMul = mat==="pbt" ? 0.7 : 1.1;
+  const cut = mat==="pbt" ? 1800 : 3500;
+
+  // DOWN (바닥)
+  noiseBurst(t, 0.03, cut, 0.45 * matMul);
+
+  // SPRING
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  osc.type="sine";
+  osc.frequency.value = sw==="black"?90+rand*20:
+                        sw==="brown"?220+rand*40:
+                        900+rand*300;
+
+  g.gain.setValueAtTime(0.25*matMul, t+0.01);
+  g.gain.exponentialRampToValueAtTime(0.001, t+0.12);
+
+  osc.connect(g);
+  g.connect(ctx.destination);
+  osc.start(t+0.01);
+  osc.stop(t+0.13);
+
+  // UP (복원)
+  noiseBurst(t+0.12, 0.02, cut*1.2, 0.18 * matMul);
+}
+
+keycap.addEventListener("mousedown", play);
+keycap.addEventListener("touchstart", play);
+</script>
+</body>
+</html>
