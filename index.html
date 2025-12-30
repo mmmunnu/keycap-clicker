@@ -57,32 +57,20 @@
   <div class="keycap" id="keycap">CLICK</div>
 
   <script>
-    const keycap = document.getElementById("keycap");
+  const keycap = document.getElementById("keycap");
 
-    // iOS 대응: Audio 객체를 "터치 후" 생성
-    let audio;
+  function playClick() {
+    const sound = new Audio("black-switch.wav");
+    sound.volume = 0.9;
+    sound.play();
+  }
 
-    keycap.addEventListener("touchstart", () => {
-      if (!audio) {
-        audio = new Audio("black-switch.wav");
-        audio.preload = "auto";
-      }
+  // iOS 터치
+  keycap.addEventListener("touchstart", playClick);
 
-      audio.currentTime = 0;
-      audio.play();
-    });
-
-    // 데스크탑 대응
-    keycap.addEventListener("mousedown", () => {
-      if (!audio) {
-        audio = new Audio("black-switch.wav");
-        audio.preload = "auto";
-      }
-
-      audio.currentTime = 0;
-      audio.play();
-    });
-  </script>
+  // 데스크탑
+  keycap.addEventListener("mousedown", playClick);
+</script>
 
 </body>
 </html>
